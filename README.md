@@ -1,2 +1,3 @@
-# rms-template
-Template repository for microservices
+# rms-mirror
+
+Service for proxy content requests

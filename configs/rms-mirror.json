@@ -1,0 +1,16 @@
+{
+  "allowed-domains": {
+    "image.tmdb.org": {
+      "content-type": [
+        "image/*"
+      ]
+    }
+  },
+  "http": {
+    "host": "127.0.0.1",
+    "port": 8080
+  },
+  "debug": {
+    "verbose": false
+  }
+}

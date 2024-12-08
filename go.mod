@@ -1,4 +1,4 @@
-module github.com/RacoonMediaServer/rms-template
+module github.com/RacoonMediaServer/rms-mirror
 
 go 1.20
 
