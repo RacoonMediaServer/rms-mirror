@@ -1,6 +1,10 @@
 package config
 
-import "github.com/RacoonMediaServer/rms-packages/pkg/configuration"
+import (
+	"strings"
+
+	"github.com/RacoonMediaServer/rms-packages/pkg/configuration"
+)
 
 // Configuration represents entire service configuration
 type Configuration struct {
@@ -12,6 +16,19 @@ type Configuration struct {
 
 type Domain struct {
 	ContentType []string `json:"content-type"`
+	LimitMB     uint32   `json:"limit"`
+}
+
+func (d Domain) LimitBytes() int64 {
+	return int64(d.LimitMB * 1024 * 1024)
+}
+
+func (d Domain) MakeAcceptHeader() string {
+	if len(d.ContentType) == 0 {
+		return "*/*"
+	}
+
+	return strings.Join(d.ContentType, ",")
 }
 
 var config Configuration

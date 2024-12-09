@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -33,7 +34,39 @@ func (s *Service) getDomainConfig(u *url.URL) (config.Domain, error) {
 	return domain, nil
 }
 
+func requestContent(link *url.URL, userAgent, accept string, maxBytes int64) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodGet, link.String(), nil)
+	if err != nil {
+		return &http.Response{}, err
+	}
+
+	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Accept", accept)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return &http.Response{}, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		_ = resp.Body.Close()
+		return &http.Response{}, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	if resp.ContentLength > maxBytes {
+		_ = resp.Body.Close()
+		return &http.Response{}, fmt.Errorf("limit exceede: %d > %d", resp.ContentLength, maxBytes)
+	}
+
+	return resp, nil
+}
+
 func (s *Service) proxyFunc(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
 	link, err := extractLink(req.URL.Query())
 	if err != nil {
 		logger.Errorf("Extract content URL failed: %s", err)
@@ -48,7 +81,14 @@ func (s *Service) proxyFunc(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	logger.Info(domain.ContentType)
-	logger.Infof("%+v", req.Header)
+	resp, err := requestContent(link, req.UserAgent(), domain.MakeAcceptHeader(), domain.LimitBytes())
+	if err != nil {
+		logger.Errorf("Fetch %s failed: %s", link.String(), err)
+		w.WriteHeader(http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
 
+	w.Header().Add("Content-Type", resp.Header.Get("Content-Type"))
+	_, _ = io.CopyN(w, resp.Body, domain.LimitBytes())
 }
